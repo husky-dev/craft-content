@@ -2,6 +2,8 @@
  * Markdown file data
  */
 
+import { isUndef } from './types';
+
 export interface MdFileData {
   slug: string;
   date?: Date;
@@ -15,6 +17,8 @@ export interface MdFileData {
   tags?: string[];
   content: string;
   social?: string;
+  showToc?: boolean;
+  tocOpen?: boolean;
 }
 
 export interface MdFileDataCover {
@@ -76,6 +80,12 @@ export const getFrontMatter = (data: MdFileData): string => {
       lines.push(`  caption: "${data.cover.caption}"`);
     }
     lines.push(`  relative: true`);
+  }
+  if (!isUndef(data.showToc)) {
+    lines.push(`ShowToc: ${data.showToc}`);
+  }
+  if (!isUndef(data.tocOpen)) {
+    lines.push(`TocOpen: ${data.tocOpen}`);
   }
   if (data.draft) {
     lines.push(`draft: true`);

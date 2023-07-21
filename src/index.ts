@@ -116,6 +116,20 @@ const readMdFielData = (filePath: string): MdFileData | undefined => {
     original = originalMatch[1];
     content = content.replace(originalMatch[0], '');
   }
+  // ShowToc
+  let showToc: boolean | undefined;
+  const showTocMatch = /> ShowToc: (.+?)\n/g.exec(content);
+  if (showTocMatch) {
+    showToc = showTocMatch[1] === 'true';
+    content = content.replace(showTocMatch[0], '');
+  }
+  // TocOpen
+  let tocOpen: boolean | undefined;
+  const tocOpenMatch = /> TocOpen: (.+?)\n/g.exec(content);
+  if (tocOpenMatch) {
+    tocOpen = tocOpenMatch[1] === 'true';
+    content = content.replace(tocOpenMatch[0], '');
+  }
   // Social
   let social: string | undefined;
   const socialMatch = /> Social: (.+?)\n/g.exec(content);
@@ -149,6 +163,8 @@ const readMdFielData = (filePath: string): MdFileData | undefined => {
     original,
     draft,
     social,
+    showToc,
+    tocOpen,
   };
 };
 
