@@ -7,6 +7,11 @@
   "bin": {
     "craft-content": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "start": "ts-node ./src/index.ts",
     "dist": "node esbuild",
