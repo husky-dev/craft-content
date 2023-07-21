@@ -8,7 +8,7 @@
     "craft-content": "./dist/index.js"
   },
   "files": [
-    "dist",
+    "dist/index.js",
     "LICENSE",
     "README.md"
   ],
