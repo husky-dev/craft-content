@@ -1,7 +1,7 @@
 {
   "name": "craft-content",
   "description": "Craft Content is a CLI tool designed to generate Hugo website content from markdown files exported from the Craft application.",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "license": "MIT",
   "main": "./dist/index.js",
   "bin": {
