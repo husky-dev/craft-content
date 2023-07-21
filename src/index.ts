@@ -90,7 +90,8 @@ const readMdFielData = (filePath: string): MdFileData | undefined => {
   let lang: string | undefined;
   const langMatch = /> Language: (.+?)\n/g.exec(content);
   if (langMatch) {
-    lang = langMatch[1];
+    lang = langMatch[1].trim().toLocaleLowerCase();
+    if (lang === 'ua') lang = 'uk';
     content = content.replace(langMatch[0], '');
   }
   // Slug
