@@ -4,13 +4,13 @@ import { VideoEntry, getVideoEntries, modMediaCaptions, modYoutubeEmbeds } from 
 
 const youtubeEmbededContent = `
 
-[Мег Джей: Почему 30 - это не новые 20? (TED Talks)](https://www.youtube.com/watch?v=CPAjeQFygjQ)
+[Мег Джей: Чому 30 - це не нові 20? (TED Talks)](https://www.youtube.com/watch?v=CPAjeQFygjQ)
 
 `;
 
 const youtubeEmbededExpected = `
 
-{{< youtube id="CPAjeQFygjQ" title="Мег Джей: Почему 30 - это не но1вые 20? (TED Talks)" >}}
+{{< youtube id="CPAjeQFygjQ" title="Мег Джей: Чому 30 - це не нові 20? (TED Talks)" >}}
 
 `;
 
