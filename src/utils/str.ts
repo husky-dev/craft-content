@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export const removeMarkdown = (content: string): string => {
+export const clearMarkdownSyntax = (content: string): string => {
   let mod = content;
   // Remove bold and italic
   mod = mod.replace(/\*\*(.+?)\*\*/g, '$1');

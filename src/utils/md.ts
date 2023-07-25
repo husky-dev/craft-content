@@ -1,17 +1,20 @@
+import { readFileSync } from 'fs';
+import { isUndef } from './types';
+import path from 'path';
+import { clearContent, clearMarkdownSyntax, textToSlug } from './str';
+
 /**
- * Markdown file data
+ * Parse markdown file
  */
 
-import { isUndef } from './types';
-
-export interface MdFileData {
+export interface MarkdownFileMeta {
   slug: string;
   date?: Date;
   title?: string;
   lang?: string;
   original?: string;
   draft?: boolean;
-  cover?: MdFileDataCover;
+  cover?: MarkdownFileCover;
   series?: string[];
   categories?: string[];
   tags?: string[];
@@ -21,10 +24,163 @@ export interface MdFileData {
   tocOpen?: boolean;
 }
 
-export interface MdFileDataCover {
+export interface MarkdownFileCover {
   image: string;
   caption?: string;
 }
+
+export const parseMarkdownFile = (filePath: string): MarkdownFileMeta | undefined => {
+  let content = readFileSync(filePath, 'utf8');
+  if (!content) return undefined;
+  const fileTitle = path.parse(filePath).name;
+  // Title
+  let title: string | undefined;
+  // H1 title
+  const h1TitleMatch = /^# (.+?)\n/g.exec(content);
+  if (h1TitleMatch) {
+    title = clearMarkdownSyntax(h1TitleMatch[1]);
+    content = content.replace(h1TitleMatch[0], '');
+  }
+  // Frontmatter title
+  const frontmatterTitleMatch = /> Title: (.+?)\n/g.exec(content);
+  if (frontmatterTitleMatch) {
+    title = clearMarkdownSyntax(frontmatterTitleMatch[1]);
+    content = content.replace(frontmatterTitleMatch[0], '');
+  }
+  // Date
+  let date: Date | undefined;
+  const dateMatch = /> Date: (.+?)\n/g.exec(content);
+  if (dateMatch) {
+    const dateStr = dateMatch[1];
+    const parsedDate = new Date(dateStr);
+    if (!isNaN(parsedDate.getTime())) {
+      date = parsedDate;
+      content = content.replace(dateMatch[0], '');
+    }
+  }
+  // Category
+  let categories: string[] | undefined;
+  const categoriesMatch = /> Category: (.+?)\n/g.exec(content);
+  if (categoriesMatch) {
+    categories = categoriesMatch[1].split(',').map(t => t.trim());
+    content = content.replace(categoriesMatch[0], '');
+  }
+  // Tags
+  let tags: string[] | undefined;
+  const tagsMatch = /> Tags: (.+?)\n/g.exec(content);
+  if (tagsMatch) {
+    tags = tagsMatch[1].split(',').map(t => t.trim());
+    content = content.replace(tagsMatch[0], '');
+  }
+  // Series
+  let series: string[] | undefined;
+  const seriesMatch = /> Series: (.+?)\n/g.exec(content);
+  if (seriesMatch) {
+    series = seriesMatch[1].split(',').map(t => t.trim());
+    content = content.replace(seriesMatch[0], '');
+  }
+  // Language
+  let lang: string | undefined;
+  const langMatch = /> Language: (.+?)\n/g.exec(content);
+  if (langMatch) {
+    lang = langMatch[1].trim().toLocaleLowerCase();
+    if (lang === 'ua') lang = 'uk';
+    content = content.replace(langMatch[0], '');
+  }
+  // Slug
+  const titleSlug = textToSlug(title ? title : fileTitle);
+  let paramsSlug: string | undefined;
+  const paramsSlugMatch = /> Slug: (.+?)\n/g.exec(content);
+  if (paramsSlugMatch) {
+    paramsSlug = paramsSlugMatch[1];
+    content = content.replace(paramsSlugMatch[0], '');
+  }
+  const slug = paramsSlug ? paramsSlug : titleSlug;
+  // Draft
+  let draft: boolean = false;
+  const draftMatch = /> Draft: (.+?)\n/g.exec(content);
+  if (draftMatch) {
+    draft = draftMatch[1] === 'true';
+    content = content.replace(draftMatch[0], '');
+  }
+  // Original
+  let original: string | undefined;
+  const originalMatch = /> Original: (.+?)\n/g.exec(content);
+  if (originalMatch) {
+    original = originalMatch[1];
+    content = content.replace(originalMatch[0], '');
+  }
+  // ShowToc
+  let showToc: boolean | undefined;
+  const showTocMatch = /> ShowToc: (.+?)\n/g.exec(content);
+  if (showTocMatch) {
+    showToc = showTocMatch[1] === 'true';
+    content = content.replace(showTocMatch[0], '');
+  }
+  // TocOpen
+  let tocOpen: boolean | undefined;
+  const tocOpenMatch = /> TocOpen: (.+?)\n/g.exec(content);
+  if (tocOpenMatch) {
+    tocOpen = tocOpenMatch[1] === 'true';
+    content = content.replace(tocOpenMatch[0], '');
+  }
+  // Social
+  let social: string | undefined;
+  const socialMatch = /> Social: (.+?)\n/g.exec(content);
+  if (socialMatch) {
+    social = socialMatch[1];
+    content = content.replace(socialMatch[0], '');
+  }
+  // Clear
+  content = clearContent(content);
+  // Format content
+  content = modMediaCaptions(content);
+  // Cover
+  let cover: MarkdownFileCover | undefined;
+  const coverMatch = contentToCover(content);
+  if (coverMatch) {
+    cover = coverMatch.data;
+    content = coverMatch.content;
+  }
+  // Final clear
+  content = clearContent(content);
+  return {
+    slug,
+    title,
+    content,
+    date,
+    categories,
+    series,
+    lang,
+    tags,
+    cover,
+    original,
+    draft,
+    social,
+    showToc,
+    tocOpen,
+  };
+};
+
+/**
+ * Extract first image from content and return it as cover
+ * @param content - Markdown content
+ * @returns - Cover data and content without cover
+ */
+const contentToCover = (content: string): { data: MarkdownFileCover; content: string } | undefined => {
+  const lines = content.split('\n');
+  if (!lines.length) return undefined;
+  const imgReg = /!\[[^\]]*\]\((.*?)\s*("(?:.*[^"])")?\s*\)/g;
+  const imgMatch = imgReg.exec(lines[0]);
+  if (!imgMatch) return undefined;
+  const image = imgMatch[1];
+  let caption: string | undefined;
+  if (imgMatch[2]) {
+    caption = imgMatch[2].replace(/"/g, '');
+  }
+  const newContent = lines.slice(1).join('\n');
+  return { data: { image, caption }, content: newContent };
+};
 
 /**
  * Front matter
@@ -47,7 +203,7 @@ export interface MdFileDataCover {
  *   - Kilimanjaro
  * ---
  */
-export const getFrontMatter = (data: MdFileData): string => {
+export const generateFrontMatter = (data: MarkdownFileMeta): string => {
   const lines: string[] = ['---'];
   if (data.title) {
     lines.push(`title: "${data.title}"`);
