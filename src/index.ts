@@ -242,10 +242,13 @@ const downloadAsset = async (
   assetsFolder: string,
   opts: CliOptions,
 ): Promise<{ fileName: string }> => {
+  const urlHash = md5(url);
+  const shortUrlHash = urlHash.slice(0, 4);
   // File name extracted from url
   const urlFileName = clearFileName(path.basename(url)); // some-photo.jpeg
   // Use passed title if it is possible
-  const fileTitle = !!title ? assetTitleToFileTitle(title, url) : path.parse(urlFileName).name; // some-photo
+  let fileTitle = !!title ? assetTitleToFileTitle(title, url) : path.parse(urlFileName).name; // some-photo
+  fileTitle += `-${shortUrlHash}`; // some-photo-1234
   // Chek if file exists
   const exAssetsFolderFiles = listFilesInFolder(assetsFolder);
   const exAssetsFilePath = exAssetsFolderFiles.find(name => name.includes(fileTitle));
@@ -255,9 +258,8 @@ const downloadAsset = async (
     return { fileName };
   }
   // Check if file exists in cache
-  const cacheFileTitle = md5(url);
   const exCacheFiles = listFilesInFolder(opts.cachePath);
-  const exCacheFilePath = exCacheFiles.find(name => name.includes(cacheFileTitle));
+  const exCacheFilePath = exCacheFiles.find(name => name.includes(urlHash));
   if (exCacheFilePath) {
     // Gettitn file extension which was was found at the cache
     const exChacheFileExt = path.extname(exCacheFilePath).replace('.', '');
@@ -270,13 +272,13 @@ const downloadAsset = async (
   }
   // Download file
   log.info('Downloading asset: ', url);
-  const downloadRes = await downloadFileToFolder(url, cacheFileTitle, opts.cachePath);
+  const downloadRes = await downloadFileToFolder(url, urlHash, opts.cachePath);
   let newCacheFileExt = downloadRes.fileExt;
   let newCacheFilePath = downloadRes.filePath;
 
   // Convert tiff to jpg
   if (!!newCacheFileExt && ['tiff', 'tif', 'octet-stream'].includes(newCacheFileExt)) {
-    const cacheFileConvPath = path.join(opts.cachePath, `${cacheFileTitle}.jpg`);
+    const cacheFileConvPath = path.join(opts.cachePath, `${urlHash}.jpg`);
     await convertImage(newCacheFilePath, cacheFileConvPath);
     unlinkSync(newCacheFilePath);
     newCacheFileExt = 'jpg';
@@ -351,12 +353,14 @@ const getVideoPoster = async (inputFilePath: string, opts: CliOptions): Promise<
   const inputFileName = path.basename(inputFilePath, `.${inputFileExt}`); // video
   const inputFileFolderPath = path.dirname(inputFilePath); // /path/to/post
   const inputFileHash = await getFileHash(inputFilePath); // 1234567890
-  const outputFilePath = path.join(inputFileFolderPath, `${inputFileName}.jpg`); // /path/to/post/video.jpg
+  const shortInputFileHash = inputFileHash.slice(0, 4); // 1234
+  const outputFilePath = path.join(inputFileFolderPath, `${inputFileName}-${shortInputFileHash}.jpg`); // /path/to/post/video.jpg
   if (existsSync(outputFilePath)) {
     log.debug('Video poster found: ', outputFilePath);
     return outputFilePath;
   }
-  const cacheFilePath = path.join(opts.cachePostersPath, `${inputFileHash}.jpg`); // /path/to/cache/1234567890.jpg
+  // eslint-disable-next-line max-len
+  const cacheFilePath = path.join(opts.cachePath, `${inputFileHash}-${shortInputFileHash}.jpg`); // /path/to/cache/1234567890.jpg
   if (!existsSync(cacheFilePath)) {
     log.debug('Creating video poster: ', inputFilePath);
     await createVideoScreenshot(inputFilePath, cacheFilePath);
@@ -386,15 +390,14 @@ interface CliOptions {
   srcPath: string;
   distPath: string;
   cachePath: string;
-  cachePostersPath: string;
 }
 
 const prepareOptions = (opts: OptionValues): CliOptions => {
-  const srcPath = path.join(__dirname, isStr(opts.src) ? opts.src : 'craft');
-  const distPath = path.join(__dirname, isStr(opts.dist) ? opts.dist : 'content');
-  const cachePath = path.join(__dirname, isStr(opts.cache) ? opts.cache : '.cache');
-  const cachePostersPath = path.join(cachePath, 'posters');
-  return { srcPath, distPath, cachePath, cachePostersPath };
+  const curDir = process.cwd();
+  const srcPath = path.join(curDir, isStr(opts.src) ? opts.src : 'craft');
+  const distPath = path.join(curDir, isStr(opts.dist) ? opts.dist : 'content');
+  const cachePath = path.join(curDir, isStr(opts.cache) ? opts.cache : '.cache');
+  return { srcPath, distPath, cachePath };
 };
 
 const run = async (inputOpts: OptionValues) => {
@@ -409,7 +412,6 @@ const run = async (inputOpts: OptionValues) => {
   // Cache
   log.info('Cache path:', opts.cachePath);
   mkdirp(opts.cachePath);
-  mkdirp(opts.cachePostersPath);
 
   const filePaths = listFilesInFolder(opts.srcPath, ['md']);
   if (!filePaths.length) throw new Error('No files to import found');
